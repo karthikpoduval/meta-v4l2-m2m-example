@@ -1,4 +1,4 @@
-SRC_URI = "gitsm://github.com/karthikpoduval/qemu.git;branch=scaler-bringup;protocol=https \
+SRC_URI = "gitsm://github.com/karthikpoduval/qemu.git;branch=v4.2.0-m2m-scaler-bringup;protocol=https \
            file://powerpc_rom.bin \
            file://run-ptest \
 "
@@ -9,4 +9,5 @@ S = "${WORKDIR}/git"
 
 PACKAGECONFIG[libxml2] = ""
 PACKAGECONFIG[xfs] = ""
+PACKAGECONFIG[libudev] = ""
 
