@@ -10,3 +10,5 @@ S = "${WORKDIR}/git"
 PACKAGECONFIG[libxml2] = ""
 PACKAGECONFIG[xfs] = ""
 
+#EXTRA_OECONF:append = " --enable-sanitizers"
+EXTRA_OECONF:append = " --enable-werror"
