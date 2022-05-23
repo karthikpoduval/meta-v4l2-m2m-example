@@ -1,0 +1,20 @@
+From 0948bc99070e96037813bd5dedc26c3484009e7b Mon Sep 17 00:00:00 2001
+From: Karthik Poduval <karthik.poduval@gmail.com>
+Date: Mon, 23 May 2022 12:12:27 -0700
+Subject: [PATCH] libcamera: export internal headers for m2m devices
+
+internal headers needed for V4L2 m2m applications, export those.
+---
+ include/libcamera/internal/meson.build | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/libcamera/internal/meson.build b/include/libcamera/internal/meson.build
+index a96bbb95..514b538a 100644
+--- a/include/libcamera/internal/meson.build
++++ b/include/libcamera/internal/meson.build
+@@ -42,3 +42,5 @@ libcamera_internal_headers = files([
+     'v4l2_subdevice.h',
+     'v4l2_videodevice.h',
+ ])
++
++install_headers(libcamera_internal_headers, subdir : libcamera_include_dir)
