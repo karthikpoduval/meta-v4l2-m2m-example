@@ -1,0 +1,33 @@
+From b68d6c8f243209bbc4b0719502fb28af7a43528a Mon Sep 17 00:00:00 2001
+From: Karthik Poduval <karthik.poduval@gmail.com>
+Date: Wed, 25 May 2022 00:00:30 -0700
+Subject: [PATCH] libcamera: export internal headers to libcamera/internal path
+
+---
+ include/libcamera/base/private.h       | 2 +-
+ include/libcamera/internal/meson.build | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/include/libcamera/base/private.h b/include/libcamera/base/private.h
+index 163012bf..96be638a 100644
+--- a/include/libcamera/base/private.h
++++ b/include/libcamera/base/private.h
+@@ -18,5 +18,5 @@
+  */
+ 
+ #ifndef LIBCAMERA_BASE_PRIVATE
+-#error "Private headers must not be included in the libcamera API"
++//#error "Private headers must not be included in the libcamera API"
+ #endif
+diff --git a/include/libcamera/internal/meson.build b/include/libcamera/internal/meson.build
+index 514b538a..8e153f5b 100644
+--- a/include/libcamera/internal/meson.build
++++ b/include/libcamera/internal/meson.build
+@@ -43,4 +43,6 @@ libcamera_internal_headers = files([
+     'v4l2_videodevice.h',
+ ])
+ 
+-install_headers(libcamera_internal_headers, subdir : libcamera_include_dir)
++libcamera_internal_include_dir = libcamera_include_dir / 'internal'
++
++install_headers(libcamera_internal_headers, subdir : libcamera_internal_include_dir)
