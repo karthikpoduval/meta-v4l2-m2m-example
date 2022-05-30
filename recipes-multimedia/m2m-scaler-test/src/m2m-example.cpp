@@ -23,28 +23,157 @@ using namespace libcamera;
 
 class M2MScaler {
 public:
-	M2MScaler(int width, int height) {
-		width_ = width;
-		height_ = height;
+	M2MScaler(Size input, Size output) {
+		inputSize_ = input;
+		outputSize_ = output;
 	
 		enumerator_ = DeviceEnumerator::create();
 		if (!enumerator_) {
 			cerr << "Failed to create device enumerator" << endl;
+			assert(1);
 		}
 
 		if (enumerator_->enumerate()) {
 			cerr << "Failed to enumerate media devices" << endl;
+			assert(1);
 		}
 
-		DeviceMatch dm("virtual-v4l2-m2m-scaler");
-		dm.add("virtual-v4l2-m2m-scaler-source");
-		dm.add("virtual-v4l2-m2m-scaler-sink");
+		DeviceMatch dm("m2ms");
+		dm.add("m2ms-source");
+		dm.add("m2ms-sink");
 
 		media_ = enumerator_->search(dm);
 		if (!media_) {
 			cerr << "No vim2m device found" << endl;
-		} 
+			assert(1);
+		}
 
+
+	}
+
+	void outputBufferComplete(FrameBuffer *buffer)
+	{
+		cout << "Received output buffer" << endl;
+
+		outputFrames_++;
+
+		/* Requeue the buffer for further use. */
+		m2mScaler_->output()->queueBuffer(buffer);
+	}
+
+	void receiveCaptureBuffer(FrameBuffer *buffer)
+	{
+		cout << "Received capture buffer" << endl;
+
+		captureFrames_++;
+
+		/* Requeue the buffer for further use. */
+		m2mScaler_->capture()->queueBuffer(buffer);
+	}
+
+
+	int run() {
+		constexpr unsigned int bufferCount = 4;
+
+		EventDispatcher *dispatcher = Thread::current()->eventDispatcher();
+		int ret;
+
+		MediaEntity *entity = media_->getEntityByName("m2ms-source");
+		m2mScaler_ = new V4L2M2MDevice(entity->deviceNode());
+		if (m2mScaler_->open()) {
+			cerr << "Failed to open M2M Scaler device" << endl;
+			return -1;
+		}
+
+		V4L2VideoDevice *capture = m2mScaler_->capture();
+		V4L2VideoDevice *output = m2mScaler_->output();
+
+		V4L2DeviceFormat format = {};
+		if (capture->getFormat(&format)) {
+			cerr << "Failed to get capture format" << endl;
+			return -1;
+		}
+
+		format.size = outputSize_;
+
+		if (capture->setFormat(&format)) {
+			cerr << "Failed to set capture format" << endl;
+			return -1;
+		}
+
+		format.size = inputSize_;
+
+		if (output->setFormat(&format)) {
+			cerr << "Failed to set output format" << endl;
+			return -1;
+		}
+
+		ret = capture->allocateBuffers(bufferCount, &captureBuffers_);
+		if (ret < 0) {
+			cerr << "Failed to allocate Capture Buffers" << endl;
+			return -1;
+		}
+
+		ret = output->allocateBuffers(bufferCount, &outputBuffers_);
+		if (ret < 0) {
+			cerr << "Failed to allocate Output Buffers" << endl;
+			return -1;
+		}
+
+		capture->bufferReady.connect(this, &M2MScaler::receiveCaptureBuffer);
+		output->bufferReady.connect(this, &M2MScaler::outputBufferComplete);
+
+		for (const std::unique_ptr<FrameBuffer> &buffer : captureBuffers_) {
+			if (capture->queueBuffer(buffer.get())) {
+				std::cout << "Failed to queue capture buffer" << std::endl;
+			}
+		}
+
+		for (const std::unique_ptr<FrameBuffer> &buffer : outputBuffers_) {
+			if (output->queueBuffer(buffer.get())) {
+				std::cout << "Failed to queue output buffer" << std::endl;
+			}
+		}
+
+		ret = capture->streamOn();
+		if (ret) {
+			cerr << "Failed to streamOn capture" << endl;
+		}
+
+		ret = output->streamOn();
+		if (ret) {
+			cerr << "Failed to streamOn output" << endl;
+		}
+	
+		Timer timeout;
+		timeout.start(50000);
+		while (timeout.isRunning()) {
+			dispatcher->processEvents();
+			if (captureFrames_ > 4)
+				break;
+		}
+
+		cerr << "Output " << outputFrames_ << " frames" << std::endl;
+		cerr << "Captured " << captureFrames_ << " frames" << std::endl;
+
+		if (captureFrames_ < 4) {
+			cerr << "Failed to capture 30 frames within timeout." << std::endl;
+			return -1;
+		}
+
+		ret = capture->streamOff();
+		if (ret) {
+			cerr << "Failed to StreamOff the capture device." << std::endl;
+			return -1;
+		}
+
+		ret = output->streamOff();
+		if (ret) {
+			cerr << "Failed to StreamOff the output device." << std::endl;
+			return -1;
+		}
+
+		return 0;
 	}
 private:
 	std::unique_ptr<DeviceEnumerator> enumerator_;
@@ -56,11 +185,15 @@ private:
 
 	unsigned int outputFrames_;
 	unsigned int captureFrames_;
-	int width_;
-	int height_;
+	Size inputSize_;
+	Size outputSize_;
 };
 
 int main()
 {
-	M2MScaler *s = new M2MScaler(640, 480);
+	Size input(640, 480);
+	Size output(320, 240);
+	M2MScaler *s = new M2MScaler(input, output);
+
+	assert(s->run() == 0);
 }
