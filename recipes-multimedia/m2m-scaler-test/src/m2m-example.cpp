@@ -16,6 +16,12 @@
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/v4l2_videodevice.h"
+#include "libcamera/internal/mapped_framebuffer.h"
+
+#include "bbb_splash.h"
+#include "bbb_splash_resized.h"
+
+#define DATA_CHECK
 
 using namespace std;
 using namespace libcamera;
@@ -66,14 +72,17 @@ public:
 		cout << "Received capture buffer" << endl;
 
 		captureFrames_++;
-
+#ifdef DATA_CHECK
+		int cookie = buffer->cookie();
+		assert(memcmp(outputMappedBuffer_[cookie].planes()[0].data(), bbb_splash_resize_rgb, bbb_splash_resize_rgb_len) ==0);
+#endif
 		/* Requeue the buffer for further use. */
 		m2mScaler_->capture()->queueBuffer(buffer);
 	}
 
 
 	int run() {
-		constexpr unsigned int bufferCount = 4;
+		constexpr unsigned int bufferCount = 1;
 
 		EventDispatcher *dispatcher = Thread::current()->eventDispatcher();
 		int ret;
@@ -127,12 +136,23 @@ public:
 			if (capture->queueBuffer(buffer.get())) {
 				std::cout << "Failed to queue capture buffer" << std::endl;
 			}
+			/* mmap the buffer */
+			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
+			assert(map.isValid());
+			inputMappedBuffer_.push_back(std::move(map));
+			memcpy(map.planes()[0].data(), bbb_splash_rgb, bbb_splash_rgb_len);
 		}
 
+		int cookie = 0;
 		for (const std::unique_ptr<FrameBuffer> &buffer : outputBuffers_) {
 			if (output->queueBuffer(buffer.get())) {
 				std::cout << "Failed to queue output buffer" << std::endl;
 			}
+			buffer->setCookie(cookie++);
+			/* mmap the buffer */
+			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
+			assert(map.isValid());
+			outputMappedBuffer_.push_back(std::move(map));
 		}
 
 		ret = capture->streamOn();
@@ -187,6 +207,8 @@ private:
 	unsigned int captureFrames_;
 	Size inputSize_;
 	Size outputSize_;
+	std::vector<MappedBuffer> inputMappedBuffer_;
+	std::vector<MappedBuffer> outputMappedBuffer_;
 };
 
 int main()
