@@ -151,7 +151,6 @@ public:
 			/* mmap the buffer */
 			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
 			assert(map.isValid());
-			cerr << "span size=" << map.planes()[0].size() << " arrr size=" << bbb_splash_rgb_len << std::endl;
 			assert(map.planes()[0].size() == bbb_splash_rgb_len);
 			memcpy(map.planes()[0].data(), bbb_splash_rgb, map.planes()[0].size());
 			inputMappedBuffer_.push_back(std::move(map));
