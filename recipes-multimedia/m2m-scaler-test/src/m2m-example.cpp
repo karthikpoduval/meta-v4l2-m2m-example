@@ -29,7 +29,7 @@ using namespace libcamera;
 
 class M2MScaler {
 public:
-	M2MScaler(Size input, Size output) {
+	M2MScaler(Size input, Size output) : captureFrames_(0), outputFrames_(0) {
 		inputSize_ = input;
 		outputSize_ = output;
 	
@@ -74,7 +74,7 @@ public:
 		captureFrames_++;
 #ifdef DATA_CHECK
 		int cookie = buffer->cookie();
-		assert(memcmp(outputMappedBuffer_[cookie].planes()[0].data(), bbb_splash_resize_rgb, bbb_splash_resize_rgb_len) ==0);
+		assert(memcmp(outputMappedBuffer_[cookie].planes()[0].data(), bbb_splash_resize_rgb, outputMappedBuffer_[cookie].planes()[0].size()) ==0);
 #endif
 		/* Requeue the buffer for further use. */
 		m2mScaler_->capture()->queueBuffer(buffer);
@@ -132,27 +132,29 @@ public:
 		capture->bufferReady.connect(this, &M2MScaler::receiveCaptureBuffer);
 		output->bufferReady.connect(this, &M2MScaler::outputBufferComplete);
 
+		int cookie = 0;
 		for (const std::unique_ptr<FrameBuffer> &buffer : captureBuffers_) {
 			if (capture->queueBuffer(buffer.get())) {
 				std::cout << "Failed to queue capture buffer" << std::endl;
-			}
-			/* mmap the buffer */
-			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
-			assert(map.isValid());
-			inputMappedBuffer_.push_back(std::move(map));
-			memcpy(map.planes()[0].data(), bbb_splash_rgb, bbb_splash_rgb_len);
-		}
-
-		int cookie = 0;
-		for (const std::unique_ptr<FrameBuffer> &buffer : outputBuffers_) {
-			if (output->queueBuffer(buffer.get())) {
-				std::cout << "Failed to queue output buffer" << std::endl;
 			}
 			buffer->setCookie(cookie++);
 			/* mmap the buffer */
 			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
 			assert(map.isValid());
 			outputMappedBuffer_.push_back(std::move(map));
+		}
+
+		for (const std::unique_ptr<FrameBuffer> &buffer : outputBuffers_) {
+			if (output->queueBuffer(buffer.get())) {
+				std::cout << "Failed to queue output buffer" << std::endl;
+			}
+			/* mmap the buffer */
+			MappedFrameBuffer map(buffer.get(), MappedFrameBuffer::MapFlag::ReadWrite);
+			assert(map.isValid());
+			cerr << "span size=" << map.planes()[0].size() << " arrr size=" << bbb_splash_rgb_len << std::endl;
+			assert(map.planes()[0].size() == bbb_splash_rgb_len);
+			memcpy(map.planes()[0].data(), bbb_splash_rgb, map.planes()[0].size());
+			inputMappedBuffer_.push_back(std::move(map));
 		}
 
 		ret = capture->streamOn();
