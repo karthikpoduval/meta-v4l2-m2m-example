@@ -5,7 +5,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/GPL-2.0-only;md5=801f80980d171d
 
 inherit module
 
-SRC_URI = "git://github.com/karthikpoduval/v4l2-m2m-scaler-driver.git;branch=bringup;protocol=https"
+SRC_URI = "git://github.com/karthikpoduval/v4l2-m2m-scaler-driver.git;branch=elc-2022;protocol=https"
 SRCREV = "${AUTOREV}"
 
 S = "${WORKDIR}/git"

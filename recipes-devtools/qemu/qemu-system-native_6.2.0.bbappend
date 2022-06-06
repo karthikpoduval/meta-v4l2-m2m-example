@@ -1,4 +1,4 @@
-SRC_URI = "gitsm://github.com/karthikpoduval/qemu.git;branch=scaler-bringup;protocol=https \
+SRC_URI = "gitsm://github.com/karthikpoduval/qemu.git;branch=elc-2022;protocol=https \
            file://powerpc_rom.bin \
            file://run-ptest \
 "
